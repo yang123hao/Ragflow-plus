@@ -57,3 +57,4 @@ management/models--slanet_plus
 node_modules/.cache/logger/umi.log
 *.log
 venv/
+venv/
