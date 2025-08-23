@@ -56,7 +56,7 @@ docker compose -f docker/docker-compose.yml up -d
 
 1. Fork本GitHub仓库
 2. 将fork克隆到本地：  
-`git clone git@github.com:<你的用户名>/ragflow-plus.git`
+`git clone git@github.com:<yang123hao>/ragflow-plus.git`
 3. 创建本地分支：  
 `git checkout -b my-branch`
 4. 提交信息需包含充分说明：  
@@ -107,3 +107,6 @@ docker compose -f docker/docker-compose.yml up -d
 ## ✨ Star History
 
 ![Stargazers over time](https://starchart.cc/zstar1003/ragflow-plus.svg)
+=======
+# Ragflow
+>>>>>>> 6e168565bf3879da254c25b5820fee793ae54879
