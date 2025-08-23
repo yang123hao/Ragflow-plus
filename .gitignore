@@ -58,3 +58,7 @@ node_modules/.cache/logger/umi.log
 *.log
 venv/
 venv/
+management/myenv/
+management/myenv/lib/python3.12/site-packages/nvidia/*
+*.so
+*.pyc
