@@ -62,3 +62,9 @@ management/myenv/
 management/myenv/lib/python3.12/site-packages/nvidia/*
 *.so
 *.pyc
+management/myenv/
+venv/
+*.so
+*.pyc
+__pycache__/
+node_modules/
