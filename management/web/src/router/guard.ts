@@ -20,6 +20,7 @@ export function registerNavigationGuard(router: Router) {
     NProgress.start()
     const userStore = useUserStore()
     const permissionStore = usePermissionStore()
+    
     // 如果没有登录
     if (!getToken()) {
       // 如果在免登录的白名单中，则直接进入
@@ -27,6 +28,16 @@ export function registerNavigationGuard(router: Router) {
       // 其他没有访问权限的页面将被重定向到登录页面
       return LOGIN_PATH
     }
+    
+    // 如果已经登录，检查token是否过期
+    if (getToken()) {
+      const isTokenValid = userStore.checkTokenExpiration()
+      if (!isTokenValid) {
+        // token已过期，重定向到登录页
+        return LOGIN_PATH
+      }
+    }
+    
     // 如果已经登录，并准备进入 Login 页面，则重定向到主页
     if (to.path === LOGIN_PATH) return "/"
     // 如果用户已经获得其权限角色

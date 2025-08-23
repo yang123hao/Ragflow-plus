@@ -13,11 +13,61 @@ export const useUserStore = defineStore("user", () => {
   const avatar = ref<string>("https://pic1.zhimg.com/v2-aaf12b68b54b8812e6b449e7368d30cf_l.jpg?source=32738c0c&needBackground=1")
   const tagsViewStore = useTagsViewStore()
   const settingsStore = useSettingsStore()
+  
+  // JWT过期检查定时器
+  let tokenCheckTimer: NodeJS.Timeout | null = null
+
+  // 检查JWT是否过期
+  const checkTokenExpiration = () => {
+    const currentToken = getToken()
+    if (!currentToken) return false
+    
+    try {
+      // 解析JWT token（不验证签名，只获取payload）
+      const base64Url = currentToken.split('.')[1]
+      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+      const jsonPayload = decodeURIComponent(atob(base64).split('').map(c => {
+        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+      }).join(''))
+      
+      const payload = JSON.parse(jsonPayload)
+      const currentTime = Math.floor(Date.now() / 1000)
+      
+      // 检查是否过期
+      if (payload.exp && currentTime > payload.exp) {
+        ElMessage.error("登录已过期，请重新登录")
+        logout()
+        return false
+      }
+      
+      return true
+    } catch (error) {
+      console.error("Token解析失败:", error)
+      logout()
+      return false
+    }
+  }
 
   // 设置 Token
   const setToken = (value: string) => {
     _setToken(value)
     token.value = value
+    
+    // 清除之前的定时器
+    if (tokenCheckTimer) {
+      clearInterval(tokenCheckTimer)
+    }
+    
+    // 设置定时检查JWT过期（每分钟检查一次）
+    tokenCheckTimer = setInterval(() => {
+      if (!checkTokenExpiration()) {
+        // 如果token过期，清除定时器
+        if (tokenCheckTimer) {
+          clearInterval(tokenCheckTimer)
+          tokenCheckTimer = null
+        }
+      }
+    }, 60000) // 60秒检查一次
   }
 
   // 获取用户详情
@@ -39,15 +89,30 @@ export const useUserStore = defineStore("user", () => {
 
   // 登出
   const logout = () => {
+    // 清除定时器
+    if (tokenCheckTimer) {
+      clearInterval(tokenCheckTimer)
+      tokenCheckTimer = null
+    }
+    
     removeToken()
     token.value = ""
     roles.value = []
     resetRouter()
     resetTagsView()
+    
+    // 跳转到登录页
+    window.location.href = "/login"
   }
 
   // 重置 Token
   const resetToken = () => {
+    // 清除定时器
+    if (tokenCheckTimer) {
+      clearInterval(tokenCheckTimer)
+      tokenCheckTimer = null
+    }
+    
     removeToken()
     token.value = ""
     roles.value = []
@@ -61,7 +126,35 @@ export const useUserStore = defineStore("user", () => {
     }
   }
 
-  return { token, roles, username, avatar, setToken, getInfo, changeRoles, logout, resetToken }
+  // 初始化时检查token
+  const initTokenCheck = () => {
+    if (getToken()) {
+      checkTokenExpiration()
+      // 设置定时检查
+      tokenCheckTimer = setInterval(() => {
+        if (!checkTokenExpiration()) {
+          if (tokenCheckTimer) {
+            clearInterval(tokenCheckTimer)
+            tokenCheckTimer = null
+          }
+        }
+      }, 60000)
+    }
+  }
+
+  return { 
+    token, 
+    roles, 
+    username, 
+    avatar, 
+    setToken, 
+    getInfo, 
+    changeRoles, 
+    logout, 
+    resetToken, 
+    checkTokenExpiration,
+    initTokenCheck
+  }
 })
 
 /**

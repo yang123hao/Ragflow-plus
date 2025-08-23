@@ -3,6 +3,7 @@ export interface CreateOrUpdateTableRequestData {
   username: string
   email?: string
   password?: string
+  sex?: string
 }
 
 export interface TableRequestData {

@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import type { TableData } from "@@/apis/tables/type"
 import { getTableDataApi } from "@@/apis/tables"
-import { ChatDotRound, User } from "@element-plus/icons-vue"
-import axios from "axios"
+import { ChatDotRound, User, Loading } from "@element-plus/icons-vue"
+import { request } from "@/http/axios"
 
 defineOptions({
   // 命名当前组件
@@ -13,7 +13,8 @@ defineOptions({
 const userList = ref<TableData[]>([])
 const searchData = reactive({
   username: "",
-  email: ""
+  email: "",
+  conversationKeyword: "" // 对话内容搜索关键字
 })
 
 // 用户列表滚动加载相关
@@ -136,6 +137,7 @@ const selectedConversation = ref<ConversationData | null>(null)
  * @param user 用户数据
  */
 function selectUser(user: TableData) {
+  console.log("选择用户:", user)
   selectedUser.value = user
   selectedConversation.value = null
   messageList.value = []
@@ -161,19 +163,49 @@ function selectConversation(conversation: ConversationData) {
  * @param userId 用户ID
  * @param isLoadMore 是否为加载更多操作
  */
-function getConversationsByUserId(userId: number, isLoadMore = false) {
+function getConversationsByUserId(userId: string | number, isLoadMore = false) {
   conversationLoading.value = true
+  
+  // 构建请求参数
+  const params: any = {
+    user_id: userId,
+    page: conversationPage.value,
+    size: conversationPageSize,
+    sort_by: "update_time",
+    sort_order: "desc"
+  }
+  
+  // 如果有搜索关键字，添加到参数中
+  if (searchData.conversationKeyword.trim()) {
+    params.keyword = searchData.conversationKeyword.trim()
+  }
+  
+  console.log("请求对话列表，参数:", params)
+  
   // 调用获取对话列表API
-  axios.get(`/api/v1/conversation`, {
-    params: {
-      user_id: userId,
-      page: conversationPage.value,
-      size: conversationPageSize,
-      sort_by: "update_time",
-      sort_order: "desc"
+  request({
+    url: `/api/v1/conversation`,
+    method: 'GET',
+    params
+  }).then((response: any) => {
+    console.log("对话列表API响应:", response)
+    console.log("响应数据结构:", {
+      hasData: !!response,
+      hasDataData: !!response?.data,
+      dataType: typeof response?.data,
+      dataKeys: response?.data ? Object.keys(response.data) : 'undefined'
+    })
+    
+    // 检查响应数据结构
+    if (!response) {
+      throw new Error("API响应为空")
     }
-  }).then((response) => {
-    const data = response.data.data
+    
+    if (!response.data) {
+      throw new Error("API响应缺少data字段")
+    }
+    
+    const data = response.data
 
     if (isLoadMore) {
       conversationList.value = [...conversationList.value, ...(data.list || [])]
@@ -183,7 +215,16 @@ function getConversationsByUserId(userId: number, isLoadMore = false) {
 
     // 判断是否还有更多数据
     conversationHasMore.value = conversationList.value.length < (data.total || 0)
-  }).catch((error) => {
+    
+    console.log("处理后的对话列表:", conversationList.value)
+    console.log("是否还有更多:", conversationHasMore.value)
+    console.log("搜索结果数量:", conversationList.value.length)
+    
+    // 显示搜索结果信息
+    if (searchData.conversationKeyword.trim()) {
+      ElMessage.success(`搜索完成，找到 ${conversationList.value.length} 个对话`)
+    }
+  }).catch((error: any) => {
     console.error("获取对话列表失败:", error)
     ElMessage.error("获取对话列表失败")
     if (!isLoadMore) {
@@ -195,18 +236,54 @@ function getConversationsByUserId(userId: number, isLoadMore = false) {
 }
 
 /**
+ * 搜索对话
+ */
+function searchConversations() {
+  const keyword = searchData.conversationKeyword.trim()
+  console.log("执行搜索，关键字:", keyword)
+  
+  // 重置分页
+  conversationPage.value = 1
+  conversationHasMore.value = true
+  conversationList.value = []
+  
+  // 显示搜索状态
+  ElMessage.success(`正在搜索: ${keyword || '所有对话'}`)
+  
+  // 执行全局搜索，不需要选择用户
+  searchAllConversations(keyword, false)
+}
+
+/**
+ * 清空搜索
+ */
+function clearSearch() {
+  searchData.conversationKeyword = ""
+  
+  // 重新加载所有对话（不带搜索条件）
+  conversationPage.value = 1
+  conversationHasMore.value = true
+  conversationList.value = []
+  searchAllConversations("", false)
+}
+
+/**
  * 加载更多对话
  */
 function loadMoreConversations() {
-  if (conversationLoading.value || !conversationHasMore.value || !selectedUser.value) return
+  if (conversationLoading.value || !conversationHasMore.value) return
 
   conversationPage.value++
-  getConversationsByUserId(selectedUser.value.id, true)
+  
+  if (searchData.conversationKeyword.trim()) {
+    searchAllConversations(searchData.conversationKeyword.trim(), true)
+  } else {
+    searchAllConversations("", true)
+  }
 }
 
 /**
  * 监听对话列表滚动事件
- * @param event DOM滚动事件对象
  */
 function handleConversationListScroll(event: Event) {
   // 将 event.target 断言为 HTMLElement 并检查是否存在
@@ -223,6 +300,95 @@ function handleConversationListScroll(event: Event) {
 }
 
 /**
+ * 全局搜索所有对话
+ * @param keyword 搜索关键字
+ * @param isLoadMore 是否为加载更多操作
+ */
+function searchAllConversations(keyword: string, isLoadMore = false) {
+  conversationLoading.value = true
+  
+  // 构建请求参数 - 全局搜索不需要用户ID
+  const params: any = {
+    page: conversationPage.value,
+    size: conversationPageSize,
+    sort_by: "update_time",
+    sort_order: "desc"
+  }
+  
+  // 如果有搜索关键字，添加到参数中
+  if (keyword) {
+    params.keyword = keyword
+  }
+  
+  console.log("全局搜索对话，参数:", params)
+  
+  // 调用全局搜索API - 使用新的全局搜索端点
+  request({
+    url: `/api/v1/conversation/search`,
+    method: 'GET',
+    params
+  }).then((response: any) => {
+    console.log("全局搜索API响应:", response)
+    console.log("响应数据结构:", {
+      hasData: !!response,
+      hasDataData: !!response?.data,
+      dataType: typeof response?.data,
+      dataKeys: response?.data ? Object.keys(response.data) : 'undefined'
+    })
+    
+    // 检查响应数据结构
+    if (!response) {
+      throw new Error("API响应为空")
+    }
+    
+    if (!response.data) {
+      throw new Error("API响应缺少data字段")
+    }
+    
+    const data = response.data
+    
+    if (isLoadMore) {
+      conversationList.value = [...conversationList.value, ...(data.list || [])]
+    } else {
+      conversationList.value = data.list || []
+    }
+
+    // 判断是否还有更多数据
+    conversationHasMore.value = conversationList.value.length < (data.total || 0)
+    
+    console.log("全局搜索结果:", conversationList.value)
+    console.log("是否还有更多:", conversationHasMore.value)
+    console.log("搜索结果数量:", conversationList.value.length)
+  }).catch((error: any) => {
+    console.error("全局搜索失败:", error)
+    console.error("错误详情:", {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+      config: error.config,
+      requestParams: params
+    })
+    
+    // 根据错误类型显示不同的错误信息
+    if (error.response?.status === 400) {
+      ElMessage.error("请求参数错误，请检查搜索条件")
+    } else if (error.response?.status === 404) {
+      ElMessage.error("搜索API端点不存在，请联系管理员")
+    } else if (error.response?.status === 500) {
+      ElMessage.error("服务器内部错误，请稍后重试")
+    } else if (error.code === 'NETWORK_ERROR') {
+      ElMessage.error("网络连接失败，请检查网络")
+    } else {
+      ElMessage.error(`搜索失败: ${error.message}`)
+    }
+    
+    conversationList.value = []
+  }).finally(() => {
+    conversationLoading.value = false
+  })
+}
+
+/**
  * 获取对话的消息列表
  * @param conversationId 对话ID
  * @param isLoadMore 是否为加载更多操作
@@ -231,7 +397,9 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
   messageLoading.value = true
 
   // 调用获取消息列表API
-  axios.get(`/api/v1/conversation/${conversationId}/messages`, {
+  request({
+    url: `/api/v1/conversation/${conversationId}/messages`,
+    method: 'GET',
     params: {
       page: messagePage.value,
       size: messagePageSize,
@@ -239,37 +407,51 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
       sort_order: "asc" // 按时间正序排列，旧消息在前
     }
   })
-    .then((response) => {
+    .then((response: any) => {
+      console.log("消息API响应:", response)
+      console.log("响应数据结构:", {
+        hasData: !!response,
+        hasDataData: !!response?.data,
+        dataType: typeof response?.data,
+        dataKeys: response?.data ? Object.keys(response.data) : 'undefined'
+      })
+      
+      // 检查响应数据结构
+      if (!response) {
+        throw new Error("API响应为空")
+      }
+      
+      if (!response.data) {
+        throw new Error("API响应缺少data字段")
+      }
+      
       const data = response.data
       // 在控制台输出获取到的消息数据
       console.log("获取到的消息数据:", data)
 
       // 处理消息数据
-      let processedMessages = []
+      let processedMessages: any[] = []
 
-      if (data.data && data.data.list) {
-        const conversation = data.data.list
-
-        // 检查messages字段是否为字符串，如果是则解析为JSON对象
-        if (conversation.messages && typeof conversation.messages === "string") {
-          try {
-            const parsedMessages = JSON.parse(conversation.messages)
-
-            // 格式化消息数据
-            processedMessages = parsedMessages.map((msg: { id: any, role: any, content: any, created_at: number }, index: any) => {
-              return {
-                id: msg.id || `msg-${index}`,
-                conversation_id: conversationId,
-                role: msg.role || "unknown",
-                content: msg.content || "",
-                create_time: msg.created_at ? new Date(msg.created_at * 1000).toISOString() : conversation.createTime
-              }
-            })
-          } catch (error) {
-            console.error("解析消息数据失败:", error)
-            processedMessages = []
-          }
+      if (data.list) {
+        // 直接使用返回的消息列表
+        const messages = data.list
+        
+        if (Array.isArray(messages)) {
+          // 格式化消息数据
+          processedMessages = messages.map((msg: any, index: number) => {
+            return {
+              id: msg.id || `msg-${index}`,
+              conversation_id: conversationId,
+              role: msg.role || "unknown",
+              content: msg.content || "",
+              create_time: msg.create_time || new Date().toISOString()
+            }
+          })
+        } else {
+          console.error("返回的消息数据不是数组:", messages)
         }
+      } else {
+        console.error("响应数据中没有list字段:", data)
       }
 
       console.log("处理后的消息数据:", processedMessages)
@@ -287,7 +469,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
       }
 
       // 判断是否还有更多数据
-      messageHasMore.value = messageList.value.length < (data.data.total || 0)
+      messageHasMore.value = messageList.value.length < (data.total || 0)
 
       // 如果不是加载更多，滚动到底部
       if (!isLoadMore && messageList.value.length > 0) {
@@ -299,7 +481,7 @@ function getMessagesByConversationId(conversationId: string, isLoadMore = false)
         }, 100)
       }
     })
-    .catch((error) => {
+    .catch((error: any) => {
       console.error("获取消息列表失败:", error)
       ElMessage.error("获取消息列表失败")
       if (!isLoadMore) {
@@ -356,9 +538,11 @@ function handleMessageListScroll(event: Event) {
   }
 }
 
-// 初始加载用户数据
+// 初始加载数据
 onMounted(() => {
   getUserData()
+  // 默认加载所有对话
+  searchAllConversations("", false)
 })
 </script>
 
@@ -373,6 +557,27 @@ onMounted(() => {
             <span>用户列表</span>
           </div>
         </template>
+        <el-card v-loading="" shadow="never" class="search-wrapper">
+          <el-form ref="searchFormRef" :inline="true" :model="searchData">
+            <el-form-item prop="conversationKeyword" label="对话">
+              <el-input 
+                v-model="searchData.conversationKeyword" 
+                placeholder="请输入" 
+                @keyup.enter="searchConversations"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button type="primary" @click="searchConversations">
+                搜索
+              </el-button>
+            </el-form-item>
+            <el-form-item>
+              <el-button @click="clearSearch">
+                清空
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </el-card>
         <div class="user-list" @scroll="handleUserListScroll">
           <div
             v-for="user in userList"
@@ -409,7 +614,7 @@ onMounted(() => {
           </div>
         </template>
         <div class="conversation-list" @scroll="handleConversationListScroll">
-          <template v-if="selectedUser">
+          <template v-if="conversationList.length > 0 || conversationLoading">
             <div
               v-for="conversation in conversationList"
               :key="conversation.id"
@@ -435,9 +640,8 @@ onMounted(() => {
               </el-icon>
               <span>加载中...</span>
             </div>
-            <el-empty v-if="conversationList.length === 0 && !conversationLoading" description="暂无对话数据" />
           </template>
-          <el-empty v-else description="请先选择用户" />
+          <el-empty v-else-if="!conversationLoading" description="暂无对话数据" />
         </div>
       </el-card>
 
@@ -483,6 +687,69 @@ onMounted(() => {
   margin-bottom: 20px;
   :deep(.el-card__body) {
     padding-bottom: 2px;
+  }
+  
+  :deep(.el-form) {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  :deep(.el-form-item) {
+    margin-bottom: 0;
+    margin-right: 0;
+  }
+  
+  :deep(.el-form-item__label) {
+    white-space: nowrap;
+  }
+}
+
+.conversation-preview {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.preview-label {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.preview-content {
+  color: #333;
+  background-color: #f8f9fa;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border-left: 3px solid #409eff;
+  line-height: 1.5;
+  max-height: 60px;
+  overflow: hidden;
+}
+
+.highlight {
+  background-color: #ffeb3b;
+  color: #333;
+  padding: 1px 2px;
+  border-radius: 2px;
+  font-weight: bold;
+}
+
+.search-stats {
+  margin-left: auto;
+  
+  .stats-text {
+    color: #409eff;
+    font-weight: 500;
+    font-size: 14px;
   }
 }
 

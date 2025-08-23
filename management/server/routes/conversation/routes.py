@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from services.conversation.service import get_conversations_by_user_id, get_messages_by_conversation_id
+from services.conversation.service import get_conversations_by_user_id, get_messages_by_conversation_id, search_all_conversations,search_all_conversations2
 from .. import conversation_bp
 
 
@@ -13,13 +13,14 @@ def get_conversations():
         size = int(request.args.get("size", 20))
         sort_by = request.args.get("sort_by", "update_time")
         sort_order = request.args.get("sort_order", "desc")
+        keyword = request.args.get("keyword")  # 添加关键字参数
 
         # 参数验证
         if not user_id:
             return jsonify({"code": 400, "message": "用户ID不能为空"}), 400
 
         # 调用服务函数获取分页和筛选后的对话数据
-        conversations, total = get_conversations_by_user_id(user_id, page, size, sort_by, sort_order)
+        conversations, total = get_conversations_by_user_id(user_id, page, size, sort_by, sort_order, keyword)
 
         # 返回符合前端期望格式的数据
         return jsonify({"code": 0, "data": {"list": conversations, "total": total}, "message": "获取对话列表成功"})
@@ -27,6 +28,46 @@ def get_conversations():
         # 错误处理
         return jsonify({"code": 500, "message": f"获取对话列表失败: {str(e)}"}), 500
 
+
+@conversation_bp.route("/search", methods=["GET"])
+def search_conversations():
+    """全局搜索所有用户的对话，支持关键字搜索"""
+    try:
+        # 获取查询参数
+        page = int(request.args.get("page", 1))
+        size = int(request.args.get("size", 20))
+        sort_by = request.args.get("sort_by", "update_time")
+        sort_order = request.args.get("sort_order", "desc")
+        keyword = request.args.get("keyword")  # 搜索关键字
+
+        # 调用全局搜索服务函数
+        conversations, total = search_all_conversations(keyword, page, size, sort_by, sort_order)
+
+        # 返回符合前端期望格式的数据
+        return jsonify({"code": 0, "data": {"list": conversations, "total": total}, "message": "全局搜索成功"})
+    except Exception as e:
+        # 错误处理
+        return jsonify({"code": 500, "message": f"全局搜索失败: {str(e)}"}), 500
+
+@conversation_bp.route("/search2", methods=["GET"])
+def search_conversations2():
+    """全局搜索所有用户的对话，支持关键字搜索"""
+    try:
+        # 获取查询参数
+        page = int(request.args.get("page", 1))
+        size = int(request.args.get("size", 20))
+        sort_by = request.args.get("sort_by", "update_time")
+        sort_order = request.args.get("sort_order", "desc")
+        keyword = request.args.get("keyword")  # 搜索关键字
+
+        # 调用全局搜索服务函数
+        conversations, total = search_all_conversations2(keyword, page, size, sort_by, sort_order)
+
+        # 返回符合前端期望格式的数据
+        return jsonify({"code": 0, "data": {"list": conversations, "total": total}, "message": "全局搜索成功"})
+    except Exception as e:
+        # 错误处理
+        return jsonify({"code": 500, "message": f"全局搜索失败: {str(e)}"}), 500
 
 @conversation_bp.route("/<conversation_id>/messages", methods=["GET"])
 def get_messages(conversation_id):

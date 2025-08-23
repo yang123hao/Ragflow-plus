@@ -1,8 +1,10 @@
 from flask import jsonify, request
 from services.users.service import get_users_with_pagination, delete_user, create_user, update_user, reset_user_password
 from .. import users_bp
+from utils import jwt_required
 
 @users_bp.route('', methods=['GET'])
+@jwt_required
 def get_users():
     """获取用户的API端点,支持分页和条件查询"""
     try:
@@ -34,6 +36,7 @@ def get_users():
         }), 500
 
 @users_bp.route('/<string:user_id>', methods=['DELETE'])
+@jwt_required
 def delete_user_route(user_id):
     """删除用户的API端点"""
     delete_user(user_id)
@@ -43,6 +46,7 @@ def delete_user_route(user_id):
     })
 
 @users_bp.route('', methods=['POST'])
+@jwt_required
 def create_user_route():
     """创建用户的API端点"""
     data = request.json
@@ -66,6 +70,7 @@ def create_user_route():
         }), 500
 
 @users_bp.route('/<string:user_id>', methods=['PUT'])
+@jwt_required
 def update_user_route(user_id):
     """更新用户的API端点"""
     data = request.json
@@ -77,17 +82,21 @@ def update_user_route(user_id):
     })
 
 @users_bp.route('/me', methods=['GET'])
+@jwt_required
 def get_current_user():
+    # 从JWT token中获取用户信息
+    user_info = request.user
     return jsonify({
         "code": 0,
         "data": {
-            "username": "admin",
-            "roles": ["admin"]
+            "username": user_info.get("username", "admin"),
+            "roles": ["admin"]  # 可以根据实际需求从数据库获取角色
         },
         "message": "获取用户信息成功"
     })
 
 @users_bp.route('/<string:user_id>/reset-password', methods=['PUT'])
+@jwt_required
 def reset_password_route(user_id):
     """
     重置用户密码的API端点

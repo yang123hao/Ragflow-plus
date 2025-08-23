@@ -39,7 +39,7 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/api": {
           // target: "https://apifoxmock.com/m1/2930465-2145633-default",
-          target: "http://localhost:5000",
+          target: "http://localhost:5500",
           // 是否为 WebSocket
           ws: false,
           // 是否允许跨域

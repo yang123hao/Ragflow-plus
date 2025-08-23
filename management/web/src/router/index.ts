@@ -41,13 +41,13 @@ export const constantRoutes: RouteRecordRaw[] = [
   },
   {
     path: "/login",
-    component: () => import("@/pages/login/index.vue"),
+    component: () => import("@/pages/login/index2.vue"),
     meta: {
       hidden: true
     }
   },
   {
-    path: "/",
+    path: "/", // 用户管理根目录
     component: Layouts,
     redirect: "/dashboard",
     children: [
@@ -147,6 +147,24 @@ export const constantRoutes: RouteRecordRaw[] = [
         meta: {
           title: "用户会话管理",
           svgIcon: "conversation",
+          affix: false,
+          keepAlive: true
+        }
+      }
+    ]
+  },
+  {
+    path: "/conversation-search",
+    component: Layouts,
+    redirect: "/conversation-search/index",
+    children: [
+      {
+        path: "index",
+        component: () => import("@/pages/conversation/search.vue"),
+        name: "conversationSearch",
+        meta: {
+          title: "用户会话全局搜索",
+          svgIcon: "search",
           affix: false,
           keepAlive: true
         }

@@ -19,8 +19,8 @@ CORS(app, resources={r"/api/*": {"origins": "*", "methods": ["GET", "POST", "PUT
 register_routes(app)
 
 # 从环境变量获取配置
-ADMIN_USERNAME = os.getenv("MANAGEMENT_ADMIN_USERNAME", "admin")
-ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "12345678")
+ADMIN_USERNAME = os.getenv("MANAGEMENT_ADMIN_USERNAME", "administrator")
+ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "@worklan18")
 JWT_SECRET = os.getenv("MANAGEMENT_JWT_SECRET", "your-secret-key")
 
 
@@ -42,11 +42,16 @@ logging.basicConfig(
 
 # 生成token
 def generate_token(username):
-    # 设置令牌过期时间（例如1小时后过期）
-    expire_time = datetime.utcnow() + timedelta(hours=1)
-
+    # 设置令牌过期时间（1小时后过期）
+    current_time = datetime.utcnow()
+    expire_time = current_time + timedelta(hours=1)   
     # 生成令牌
-    token = jwt.encode({"username": username, "exp": expire_time}, JWT_SECRET, algorithm="HS256")
+    payload = {
+        "username": username,
+        "exp": expire_time,
+        "iat": current_time  # 添加签发时间
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm="HS256")
 
     return token
 
@@ -57,7 +62,8 @@ def login():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
-
+    print("username",username)
+    print("password",password)
     # 创建用户名和密码的映射
     valid_users = {ADMIN_USERNAME: ADMIN_PASSWORD}
 
@@ -71,9 +77,27 @@ def login():
 
     # 生成token
     token = generate_token(username)
-
     return {"code": 0, "data": {"token": token}, "message": "登录成功"}
 
+# 测试JWT验证的接口
+@app.route("/api/v1/auth/test", methods=["GET"])
+def test_jwt():
+    """测试JWT验证的接口"""
+    from utils import jwt_required
+    
+    @jwt_required
+    def protected_function():
+        return {"code": 0, "message": "JWT验证成功", "data": {"user": request.user}}
+    
+    return protected_function()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    # 强制使用5001端口，忽略环境变量
+    port = int(os.getenv("FLASK_RUN_PORT", "5001"))
+    # 确保端口是5001
+    if port != 5001:
+        print(f"警告：检测到端口配置为{port}，强制使用5001端口")
+        port = 5001
+    
+    print(f"启动Flask应用，端口：{port}")
+    app.run(host="0.0.0.0", port=port, debug=False)

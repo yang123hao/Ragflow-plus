@@ -1,3 +1,4 @@
+from re import S
 import mysql.connector
 import pytz
 from datetime import datetime
@@ -153,9 +154,13 @@ def create_user(user_data):
         user_id = generate_uuid()
         # 获取基本信息
         username = user_data.get("username")
+        print('username:',username)
         email = user_data.get("email")
         password = user_data.get("password")
-        # 加密密码
+        print('password:',password)
+        sex = user_data.get("sex")
+        print('sex:',sex)
+        # 加密密
         encrypted_password = encrypt_password(password)
 
         # --- 修改时间获取和格式化逻辑 ---
@@ -173,23 +178,17 @@ def create_user(user_data):
 
         # 插入用户表
         user_insert_query = """
-        INSERT INTO user (
-            id, create_time, create_date, update_time, update_date, access_token,
-            nickname, password, email, avatar, language, color_schema, timezone,
-            last_login_time, is_authenticated, is_active, is_anonymous, login_channel,
-            status, is_superuser
+        INSERT INTO User1 (
+            id, create_time, create_Date, update_time, update_date, access_token,
+            nickname, password, email,sex
         ) VALUES (
             %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s, %s, %s,
-            %s, %s, %s, %s, %s,
-            %s, %s
+            %s, %s, %s, %s
         )
         """
         user_data_tuple = (
             user_id, create_time, current_date, create_time, current_date, None, # 使用修改后的时间
-            username, encrypted_password, email, None, "Chinese", "Bright", "UTC+8 Asia/Shanghai",
-            current_date, 1, 1, 0, "password", # last_login_time 也使用 UTC+8 时间
-            1, 0
+            username, encrypted_password, email, sex
         )
         cursor.execute(user_insert_query, user_data_tuple)
 

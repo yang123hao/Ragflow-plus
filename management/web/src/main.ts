@@ -5,6 +5,7 @@ import { pinia } from "@/pinia"
 import { router } from "@/router"
 import { installPlugins } from "@/plugins"
 import App from "@/App.vue"
+import { useUserStore } from "@/pinia/stores/user"
 // css
 import "normalize.css"
 import "nprogress/nprogress.css"
@@ -24,5 +25,9 @@ app.use(pinia).use(router)
 
 // router 准备就绪后挂载应用
 router.isReady().then(() => {
+  // 初始化JWT token检查
+  const userStore = useUserStore()
+  userStore.initTokenCheck()
+  
   app.mount("#app")
 })
