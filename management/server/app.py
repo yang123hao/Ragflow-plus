@@ -20,11 +20,7 @@ register_routes(app)
 
 # 从环境变量获取配置
 ADMIN_USERNAME = os.getenv("MANAGEMENT_ADMIN_USERNAME", "administrator")
-<<<<<<< HEAD
-ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "@worklan18")
-=======
 ADMIN_PASSWORD = os.getenv("MANAGEMENT_ADMIN_PASSWORD", "12345678")
->>>>>>> 0955b2e (更新web部分和相关文件)
 JWT_SECRET = os.getenv("MANAGEMENT_JWT_SECRET", "your-secret-key")
 
 
