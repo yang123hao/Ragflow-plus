@@ -731,3 +731,216 @@ def search_all_conversations2(keyword=None, page=1, size=20, sort_by="update_tim
         import traceback
         traceback.print_exc()
         return [], 0
+<<<<<<< HEAD
+=======
+
+def test_update_git(keyword=None, page=1, size=20, sort_by="update_time", sort_order="desc"):
+    """
+    全局搜索所有用户的对话，支持关键字搜索
+
+    参数:
+        keyword (str): 搜索关键字，可选
+        page (int): 当前页码
+        size (int): 每页大小
+        sort_by (str): 排序字段
+        sort_order (str): 排序方式 (asc/desc)
+
+    返回:
+        tuple: (对话列表, 总数)
+    """
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
+        cursor = conn.cursor(dictionary=True)
+        
+        print(f"全局搜索，关键字: {keyword}")
+        
+        # 查询总记录数
+        if keyword:
+            count_sql = """
+            SELECT COUNT(*) as total 
+            FROM conversation c
+            CROSS JOIN JSON_TABLE(c.message, '$[*]' COLUMNS (
+            content JSON PATH '$.content',  
+            role VARCHAR(50) PATH '$.role'  
+            )) AS jt
+            WHERE jt.content LIKE %s 
+            """
+            search_pattern = f"%{keyword}%"
+            cursor.execute(count_sql, (search_pattern,))  # 只传入一个参数
+        else:
+            count_sql = """
+            SELECT COUNT(*) as total 
+            FROM conversation c
+            CROSS JOIN JSON_TABLE(c.message, '$[*]' COLUMNS (
+            content JSON PATH '$.content',  
+            role VARCHAR(50) PATH '$.role'  
+            )) AS jt
+            """
+            cursor.execute(count_sql)
+        
+        total = cursor.fetchone()["total"]
+        print(f"查询到总记录数: {total}")
+
+        # 计算分页偏移量
+        offset = (page - 1) * size
+
+        # 确定排序方向
+        sort_direction = "DESC" if sort_order.lower() == "desc" else "ASC"
+
+        # 执行分页查询
+        if keyword:
+            query = f"""
+            SELECT 
+                (select b.nickname  from user b where b.id=c.user_id) as id, 
+                c.name,
+                c.create_date,
+                c.update_date,
+                c.dialog_id,
+                jt.content,
+                jt.role
+            FROM 
+                conversation c
+            CROSS JOIN JSON_TABLE(c.message, '$[*]' COLUMNS (
+            content JSON PATH '$.content',  
+            role VARCHAR(50) PATH '$.role'  
+            )) AS jt
+            WHERE jt.content LIKE %s 
+            ORDER BY 
+                c.{sort_by} {sort_direction}
+            LIMIT %s OFFSET %s
+            """
+            search_pattern = f"%{keyword}%"
+            print(f"执行全局关键字搜索查询: {query}")
+            print(f"参数: keyword={keyword}, size={size}, offset={offset}")
+            cursor.execute(query, (search_pattern, size, offset))
+        else:
+            query = f"""
+            SELECT 
+                (select b.nickname  from user b where b.id=c.user_id) as id, 
+                c.name,
+                c.create_date,
+                c.update_date,
+                c.dialog_id,
+                jt.content,
+                jt.role
+            FROM 
+                conversation c
+            CROSS JOIN JSON_TABLE(c.message, '$[*]' COLUMNS (
+            content JSON PATH '$.content',  
+            role VARCHAR(50) PATH '$.role'  
+            )) AS jt
+            ORDER BY 
+                c.{sort_by} {sort_direction}
+            LIMIT %s OFFSET %s
+            """
+            print(f"执行全局普通查询: {query}")
+            print(f"参数: size={size}, offset={offset}")
+            cursor.execute(query, (size, offset))
+        
+        results = cursor.fetchall()
+        print(f"查询结果数量: {len(results)}")
+
+        # 获取每个对话的最新消息
+        conversations = []
+        for conversation in results:
+            print(f"处理对话: {conversation}")
+            
+            # 查询对话的所有消息
+            conv_query = """
+            SELECT (select b.nickname  from user b where b.id=c.user_id) as id, message, name,
+            jt.content,
+            jt.role,
+            c.create_date,
+            c.update_date
+            FROM conversation c
+            CROSS JOIN JSON_TABLE(c.message, '$[*]' COLUMNS (
+            content JSON PATH '$.content',  
+            role VARCHAR(50) PATH '$.role'  
+            )) AS jt
+            WHERE id = %s
+            ORDER BY create_date DESC
+            """
+            cursor.execute(conv_query, (conversation["id"],))
+            conv_results = cursor.fetchall()
+
+            latest_message = ""
+            conversation_name = conversation.get("name", "")  # 默认使用conversation的name
+            
+            if conv_results and len(conv_results) > 0:
+                # 获取最新的一条对话记录
+                latest_conv = conv_results[0]
+                print(f"最新对话记录: {latest_conv}")
+                
+                # 如果conversation有name，优先使用conversation的name
+                if latest_conv and latest_conv.get("name"):
+                    conversation_name = latest_conv["name"]
+
+                if latest_conv and latest_conv["message"]:
+                    # 获取最后一条消息内容
+                    messages = latest_conv["message"]
+                    print(f"消息字段: {messages}, 类型: {type(messages)}")
+                    
+                    if messages:
+                        # 检查消息类型，处理字符串和字典两种情况
+                        if isinstance(messages, str):
+                            # 如果是字符串，尝试JSON解析
+                            try:
+                                import json
+                                parsed_messages = json.loads(messages)
+                                if isinstance(parsed_messages, list) and len(parsed_messages) > 0:
+                                    latest_message = parsed_messages[-1].get("content", "")
+                                else:
+                                    latest_message = parsed_messages.get("content", "") if isinstance(parsed_messages, dict) else str(parsed_messages)
+                            except:
+                                latest_message = messages
+                        elif isinstance(messages, list) and len(messages) > 0:
+                            # 如果是列表
+                            if isinstance(messages[-1], dict):
+                                latest_message = messages[-1].get("content", "")
+                            elif isinstance(messages[-1], str):
+                                latest_message = messages[-1]
+                            else:
+                                latest_message = str(messages[-1])
+                        elif isinstance(messages, dict):
+                            # 如果是字典
+                            latest_message = messages.get("content", "")
+                        else:
+                            latest_message = str(messages)
+                    
+                    print(f"提取的最新消息: {latest_message}")
+
+            # 如果没有提取到消息内容，使用对话名称作为备选
+            if not latest_message:
+                latest_message = conversation_name or f"对话 {conversation['id']}"
+            
+            print(f"最终使用的消息内容: {latest_message}")
+
+            conversations.append(
+                {
+                    "id": conversation["id"],
+                    "content": conversation["content"],  # 添加content字段
+                    "name": conversation_name,
+                    "role": conversation["role"],
+                    "createTime": conversation.get("create_date", "").strftime("%Y-%m-%d %H:%M:%S") if conversation.get("create_date") else "",
+                    "updateTime": conversation.get("update_date", "").strftime("%Y-%m-%d %H:%M:%S") if conversation.get("update_date") else "",
+                }
+            )
+
+        # 关闭连接
+        cursor.close()
+        conn.close()
+
+        return conversations, total
+
+    except mysql.connector.Error as err:
+        print(f"数据库错误: {err}")
+        # 更详细的错误日志
+        import traceback
+        traceback.print_exc()
+        return [], 0
+    except Exception as e:
+        print(f"未知错误: {e}")
+        import traceback
+        traceback.print_exc()
+        return [], 0
+>>>>>>> 0955b2e (更新web部分和相关文件)

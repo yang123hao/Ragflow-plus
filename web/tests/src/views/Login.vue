@@ -32,6 +32,7 @@
         {{ message }}
       </div>
     </div>
+<<<<<<< HEAD
     
     <div class="info">
       <p><strong>测试账号：</strong></p>
@@ -39,6 +40,8 @@
       <p>密码：@worklan18</p>
       <p><small>注意：JWT令牌设置为1分钟后过期，用于测试过期功能</small></p>
     </div>
+=======
+>>>>>>> 0955b2e (更新web部分和相关文件)
   </div>
 </template>
 
