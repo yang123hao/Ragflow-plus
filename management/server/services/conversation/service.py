@@ -731,8 +731,6 @@ def search_all_conversations2(keyword=None, page=1, size=20, sort_by="update_tim
         import traceback
         traceback.print_exc()
         return [], 0
-<<<<<<< HEAD
-=======
 
 def test_update_git(keyword=None, page=1, size=20, sort_by="update_time", sort_order="desc"):
     """
@@ -943,4 +941,3 @@ def test_update_git(keyword=None, page=1, size=20, sort_by="update_time", sort_o
         import traceback
         traceback.print_exc()
         return [], 0
->>>>>>> 0955b2e (更新web部分和相关文件)

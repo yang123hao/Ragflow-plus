@@ -95,15 +95,12 @@ if __name__ == "__main__":
     # 强制使用5001端口，忽略环境变量
     port = int(os.getenv("FLASK_RUN_PORT", "5001"))
     # 确保端口是5001
-<<<<<<< HEAD
     if port != 5001:
         print(f"警告：检测到端口配置为{port}，强制使用5001端口")
         port = 5001
-=======
-    if port != 5500:
-        print(f"警告：检测到端口配置为{port}，强制使用5001端口")
-        port = 5500
->>>>>>> 0955b2e (更新web部分和相关文件)
+    # if port != 5500:
+    #     print(f"警告：检测到端口配置为{port}，强制使用5001端口")
+    #     port = 5500
     
     print(f"启动Flask应用，端口：{port}")
     app.run(host="0.0.0.0", port=port, debug=False)
