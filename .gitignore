@@ -8,11 +8,7 @@ cv/
 layout_app.py
 api/flask_session
 
-<<<<<<< HEAD
 
-
-=======
->>>>>>> 0955b2e (更新web部分和相关文件)
 # Remove Cargo.lock from gitignore if creating an executable, leave it for libraries
 # More information here https://doc.rust-lang.org/cargo/guide/cargo-toml-vs-cargo-lock.html
 Cargo.lock
@@ -71,23 +67,17 @@ venv/
 *.pyc
 __pycache__/
 node_modules/
-<<<<<<< HEAD
-=======
+
 
 # ===== 新增规则：排除所有虚拟环境和缓存文件 =====
 
 # Python 虚拟环境
 venv/
-env/
-ENV/
 .venv/
-.env/
 management/myenv/
 management/server/venv/
 **/venv/
-**/env/
 **/.venv/
-**/.env/
 
 # Python 缓存文件
 __pycache__/
@@ -239,4 +229,3 @@ coverage.xml
 *.tiff
 *.svg
 *.ico
->>>>>>> 0955b2e (更新web部分和相关文件)
